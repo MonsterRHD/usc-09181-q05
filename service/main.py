@@ -1,12 +1,25 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import json, os
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/health':
-            body = json.dumps({'status':'ok'}).encode()
-            self.send_response(200); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)
-        else:
-            self.send_response(404); self.end_headers()
-    def log_message(self, *_): pass
-def run(): HTTPServer(('0.0.0.0', int(os.getenv('PORT','8000'))), Handler).serve_forever()
-if __name__ == '__main__': run()
+"""服务入口：海外保单风险处置台。
+
+- DESK_STORE_PATH：事件存储文件（JSONL）。缺省为纯内存，重启即清空；
+  指定后系统恢复时自动重放，处置链仍按事故发生顺序整理。
+- PORT：监听端口，缺省 8000。
+
+启动：python -m service.main
+"""
+
+import os
+
+from service.desk import Desk, EventStore
+from service.desk.api import create_server
+
+
+def build_desk() -> Desk:
+    return Desk(EventStore(os.getenv("DESK_STORE_PATH") or None))
+
+
+def run():
+    create_server(build_desk(), int(os.getenv("PORT", "8000"))).serve_forever()
+
+
+if __name__ == "__main__":
+    run()
